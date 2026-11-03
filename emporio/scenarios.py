@@ -8,6 +8,7 @@ regenerated; wording varies between runs because the model is not deterministic.
 from __future__ import annotations
 
 import argparse
+import time
 from dataclasses import dataclass, replace
 from datetime import datetime
 
@@ -101,10 +102,17 @@ def run(selected: list[Scenario]) -> None:
         console.rule(scenario.title)
         for user_text in scenario.turns:
             console.print(f"[cyan]Cliente:[/] {user_text}")
+            started = time.perf_counter()
             reply = agent.send(user_text)
+            elapsed = time.perf_counter() - started
             for call in reply.tool_calls:
                 console.print(f"  [yellow]🔧 {call.name}[/] {call.arguments}")
-            console.print(f"[green]Mel:[/] {reply.text}\n")
+            console.print(f"[green]Mel:[/] {reply.text}")
+            u = reply.usage
+            console.print(
+                f"[dim]  {elapsed:.1f}s · {u.model_calls} model call(s) · input {u.input_tokens} · "
+                f"cache read {u.cache_read_tokens} · cache write {u.cache_write_tokens} · output {u.output_tokens}[/]\n"
+            )
             transcript.add(user_text, reply)
         path = CONVERSATIONS_DIR / f"{index:02d}-{scenario.slug}.md"
         transcript.save(path)
