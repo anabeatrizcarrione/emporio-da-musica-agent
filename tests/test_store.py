@@ -21,7 +21,7 @@ def brl(value: float) -> str:
 
 def test_contacts_match_the_manual(policies):
     about = flat(policies.get("sobre_a_emporio_da_musica").text)
-    street = store.STORE_PROFILE["endereco"].split(" — ")[0]
+    street = store.STORE_PROFILE["endereco"].split(", Centro")[0]
     cep = re.search(r"\d{5}-\d{3}", store.STORE_PROFILE["endereco"]).group()
     assert street in about and cep in about
     assert store.STORE_PROFILE["telefone_whatsapp"] in about

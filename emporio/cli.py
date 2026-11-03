@@ -13,6 +13,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 
 from emporio.agent import AgentReply, StoreAgent, build_tool_context
+from emporio.api_key import ensure_api_key
 from emporio.config import RUNTIME_DIR, load_settings
 from emporio.prompts import PERSONA_NAME
 from emporio.transcript import Transcript, format_tool_call
@@ -45,11 +46,11 @@ def _save(transcript: Transcript) -> None:
 
 def chat(debug: bool) -> None:
     settings = load_settings()
+    ensure_api_key()
     try:
         agent = StoreAgent(build_tool_context(settings), settings.model, settings.effort)
     except anthropic.AnthropicError as exc:
         console.print(f"[red]Não foi possível iniciar o cliente da Anthropic:[/] {exc}")
-        console.print("Copie .env.example para .env e preencha ANTHROPIC_API_KEY.")
         return
 
     def new_transcript() -> Transcript:
@@ -57,7 +58,7 @@ def chat(debug: bool) -> None:
 
     clock_note = "relógio real" if settings.reference_now is None else f"data simulada {settings.now():%d/%m/%Y %H:%M}"
     console.print(Panel.fit(
-        f"[bold]Empório da Música[/] — atendimento virtual ({PERSONA_NAME})\n"
+        f"[bold]Empório da Música[/] - atendimento virtual ({PERSONA_NAME})\n"
         f"[dim]modelo {settings.model} · effort {settings.effort} · {clock_note}[/]\n[dim]{HELP}[/]",
         border_style="magenta",
     ))
@@ -89,15 +90,8 @@ def chat(debug: bool) -> None:
         except KeyboardInterrupt:
             console.print("[dim]Consulta cancelada.[/]")
             continue
-        except TypeError as exc:
-            if "authentication method" not in str(exc):
-                raise
-            console.print(
-                "[red]Nenhuma chave da API encontrada. Copie .env.example para .env e preencha ANTHROPIC_API_KEY.[/]"
-            )
-            break
         except anthropic.AuthenticationError:
-            console.print("[red]Chave da API inválida. Verifique ANTHROPIC_API_KEY no arquivo .env.[/]")
+            console.print("[red]Chave da API inválida. Confira a chave e inicie de novo.[/]")
             break
         except anthropic.APIConnectionError:
             console.print("[red]Sem conexão com a API. Verifique sua internet e tente de novo.[/]")

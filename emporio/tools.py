@@ -331,7 +331,7 @@ def get_product_details(ctx: ToolContext, product_id: Any = None, name: str | No
         )
     expired = [p for p in product.promotions if not p.is_active]
     if expired:
-        details["expired_promotions"] = [f"{p.name} ({p.discount_percent:g}%) — encerrada" for p in expired]
+        details["expired_promotions"] = [f"{p.name} ({p.discount_percent:g}%, encerrada)" for p in expired]
     if not product.sellable:
         details["similar_available_products"] = _alternatives(product, all_products)
     return details

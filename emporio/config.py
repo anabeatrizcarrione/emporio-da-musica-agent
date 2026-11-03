@@ -15,8 +15,11 @@ DATA_DIR = ROOT_DIR / "data"
 POLICY_PDF = DATA_DIR / "políticas_da_loja.pdf"
 RUNTIME_DIR = ROOT_DIR / "runtime"
 CONVERSATIONS_DIR = ROOT_DIR / "conversations"
+ENV_FILE = ROOT_DIR / ".env"
 
 DEFAULT_MODEL = "claude-opus-5-5"
+# The dataset ends in March 2026, so by default the store's clock is pinned just after the last order.
+DEMO_REFERENCE_DATE = "2026-03-25T10:00"
 STORE_TZ = ZoneInfo("America/Campo_Grande")
 
 
@@ -35,9 +38,10 @@ class Settings:
         return datetime.now(STORE_TZ).replace(tzinfo=None)
 
 
-def load_settings() -> Settings:
-    load_dotenv(ROOT_DIR / ".env")
-    raw_now = os.getenv("EMPORIO_REFERENCE_DATE", "").strip()
+def load_settings(env_file: Path = ENV_FILE) -> Settings:
+    load_dotenv(env_file)
+    # Unset → the demo date; set to an empty value → the real clock.
+    raw_now = os.getenv("EMPORIO_REFERENCE_DATE", DEMO_REFERENCE_DATE).strip()
     return Settings(
         model=os.getenv("EMPORIO_MODEL", "").strip() or DEFAULT_MODEL,
         effort=os.getenv("EMPORIO_EFFORT", "").strip() or "low",

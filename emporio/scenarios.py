@@ -15,6 +15,7 @@ from datetime import datetime
 from rich.console import Console
 
 from emporio.agent import StoreAgent, build_tool_context
+from emporio.api_key import ensure_api_key
 from emporio.config import CONVERSATIONS_DIR, load_settings
 from emporio.transcript import Transcript
 
@@ -93,6 +94,7 @@ SCENARIOS = [
 def run(selected: list[Scenario]) -> None:
     console = Console()
     base = load_settings()
+    ensure_api_key()
     for index, scenario in enumerate(SCENARIOS, start=1):
         if scenario not in selected:
             continue

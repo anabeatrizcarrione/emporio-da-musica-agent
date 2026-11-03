@@ -26,6 +26,7 @@ from typing import Any
 import anthropic
 
 from emporio.agent import REFUSAL_REPLY, StoreAgent
+from emporio.api_key import ensure_api_key
 from emporio.config import DATA_DIR, POLICY_PDF, ROOT_DIR, Settings, load_settings
 from emporio.data import StoreData, load_store_data
 from emporio.policies import PolicyManual
@@ -210,6 +211,7 @@ def _sum_usage(turns: list[dict]) -> dict[str, int]:
 
 def run(selected: list[Case]) -> Path:
     settings = load_settings()
+    ensure_api_key()
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = RESULTS_DIR / run_id
     (run_dir / "tickets").mkdir(parents=True)

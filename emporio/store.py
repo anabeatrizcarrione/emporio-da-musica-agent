@@ -18,7 +18,7 @@ from datetime import date, datetime, time, timedelta
 STORE_PROFILE = {
     "nome": "Empório da Música",
     "slogan": "Sua música começa aqui.",
-    "endereco": "Rua 14 de Maio, 3200 — Centro, Campo Grande - MS, CEP 79202-333",
+    "endereco": "Rua 14 de Maio, 3200, Centro, Campo Grande - MS, CEP 79202-333",
     "telefone_whatsapp": "(67) 3341-4444",
     "email": "contato@emporiodamusica.com.br",
     "fundacao": 2008,
