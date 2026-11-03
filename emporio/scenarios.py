@@ -111,7 +111,8 @@ def run(selected: list[Scenario]) -> None:
             u = reply.usage
             console.print(
                 f"[dim]  {elapsed:.1f}s · {u.model_calls} model call(s) · input {u.input_tokens} · "
-                f"cache read {u.cache_read_tokens} · cache write {u.cache_write_tokens} · output {u.output_tokens}[/]\n"
+                f"cache read {u.cache_read_tokens} · cache write {u.cache_write_tokens} · "
+                f"output {u.output_tokens}[/]\n"
             )
             transcript.add(user_text, reply)
         path = CONVERSATIONS_DIR / f"{index:02d}-{scenario.slug}.md"

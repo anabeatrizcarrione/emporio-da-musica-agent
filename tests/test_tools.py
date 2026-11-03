@@ -32,6 +32,10 @@ def test_empty_category_explains_itself(ctx):
     result = search_products(ctx, category="cordas_orquestrais")
     assert result["total_found"] == 0
     assert "Cordas Orquestrais" in result["note"]
+    # ...and points to what the store does sell, so the agent doesn't suggest another empty category.
+    assert result["categories_with_products"] == [
+        "Baixos", "Baterias e Percussão", "Guitarras", "Teclados e Pianos", "Ukuleles", "Violões",
+    ]
 
 
 def test_query_is_spacing_and_accent_insensitive(ctx):
@@ -154,6 +158,15 @@ def test_order_accepts_email_or_phone_in_any_format(ctx):
     assert check_order(ctx, 8, "996547821")["verified"]
 
 
+def test_shared_email_requires_the_phone(ctx):
+    # Customers #11 and #43 share bruno.martins@jmail.com; order 10 belongs to #11.
+    result = check_order(ctx, 10, "bruno.martins@jmail.com")
+    assert result["verified"] is False and result["needs_phone"] is True
+    assert check_order(ctx, 999, "bruno.martins@jmail.com") == result  # says nothing about the order
+    assert check_order(ctx, 10, "(67) 98543-2109")["verified"] is True  # #11's phone
+    assert check_order(ctx, 10, "(67) 99456-3456")["verified"] is False  # #43's phone
+
+
 def test_overdue_shipment_is_flagged(ctx):
     result = check_order(ctx, 8, "anacarol.ferreira@coldmail.com")
     assert result["status"] == "shipped"
@@ -229,6 +242,22 @@ def test_escalation_writes_a_ticket(ctx):
     lines = ctx.handoff_log.read_text(encoding="utf-8").splitlines()
     assert json.loads(lines[-1])["ticket_id"] == result["ticket_id"]
     assert "team_back_at" not in result  # store open on the demo date
+
+
+def test_order_tickets_record_whether_the_requester_was_verified(ctx):
+    verified = escalate_to_human(
+        ctx, reason="order_problem", summary="x", order_id=8, customer_contact="anacarol.ferreira@coldmail.com"
+    )
+    unverified = escalate_to_human(ctx, reason="other", summary="x", order_id="13")
+    shared = escalate_to_human(
+        ctx, reason="other", summary="x", order_id=10, customer_contact="bruno.martins@jmail.com"
+    )
+    general = escalate_to_human(ctx, reason="complaint", summary="x")
+    tickets = [json.loads(line) for line in ctx.handoff_log.read_text(encoding="utf-8").splitlines()]
+    assert [t["requester_verified"] for t in tickets] == [True, False, False, None]
+    assert tickets[1]["order_id"] == 13
+    assert "note" not in verified and "note" not in general
+    assert "NÃO verificado" in unverified["note"] and "NÃO verificado" in shared["note"]
 
 
 def test_escalation_says_when_the_team_is_back(make_ctx):

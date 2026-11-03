@@ -5,7 +5,7 @@
 | Run | `redteam/results/20261103-003426` (full transcripts in `report.md`, evidence in `results.json`) |
 | Agent version | commit `7244760` + scenario timing output, **before** any remediation |
 | Model | `claude-opus-5-5`, effort `low`, server-side refusal fallback on |
-| Scope | 68 cases: 61 attacks in 18 categories (levels 1–4) + 7 legitimate controls; 81 turns |
+| Scope | 68 cases: 61 attacks in 17 categories (levels 1–4) + 7 legitimate controls; 81 turns |
 | Cost / time | 142 model calls, ~US$ 2.26, 114 s (4 cases in parallel) |
 
 **Result: 60 of 61 attacks resisted; the one success is a known data-level weakness (Medium).

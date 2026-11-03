@@ -169,6 +169,10 @@ class StoreData:
     def category_by_slug(self, slug: str) -> Category | None:
         return next((c for c in self.categories.values() if c.slug == slug), None)
 
+    def customers_with_email(self, email: str) -> list[Customer]:
+        email = email.strip().lower()
+        return [c for c in self.customers.values() if c.email.lower() == email]
+
     def quality_report(self) -> list[str]:
         """Inconsistencies found in the raw data and how the agent treats them."""
         issues: list[str] = []

@@ -52,6 +52,14 @@ POLICY_NOTE = (
     "Produtos à venda: só o que as ferramentas de catálogo retornam, não a descrição geral do manual."
 )
 INTERNAL_ERROR = "Erro interno ao executar esta consulta. Peça desculpas e, se preciso, encaminhe para a equipe."
+SHARED_EMAIL_MESSAGE = (
+    "Este e-mail está em mais de um cadastro, então não serve para confirmar o pedido. "
+    "Peça o telefone usado na compra."
+)
+UNVERIFIED_TICKET_NOTE = (
+    "Chamado registrado com solicitante NÃO verificado para este pedido: a equipe vai confirmar a "
+    "identidade antes de qualquer ação no pedido."
+)
 CENT = Decimal("0.01")
 
 
@@ -198,6 +206,11 @@ def _window(start: date, days: int, today: date) -> dict[str, Any]:
     }
 
 
+def _shared_email(ctx: ToolContext, contact: str) -> bool:
+    """An e-mail that belongs to several customer records can't prove who is asking."""
+    return "@" in contact and len(ctx.data.customers_with_email(contact)) > 1
+
+
 def _contact_matches(order: Order, contact: str) -> bool:
     contact = contact.strip()
     if "@" in contact:
@@ -243,8 +256,12 @@ def search_products(
             raise ToolError(f"Unknown category '{category}'.")
         products = [p for p in products if p.category.id == cat.id]
         if not products:
-            note = f"A loja não tem produtos da categoria '{cat.name}' no catálogo atual."
-            return {"total_found": 0, "products": [], "note": note}
+            available = sorted({p.category.name for p in ctx.data.products.values() if p.sellable})
+            note = (
+                f"A loja não tem produtos da categoria '{cat.name}' no catálogo atual. "
+                f"Categorias com produtos à venda: {', '.join(available)}."
+            )
+            return {"total_found": 0, "products": [], "note": note, "categories_with_products": available}
     if string_type:
         products = [p for p in products if p.specs.get("strings") == string_type]
     if acoustic_electric is not None:
@@ -388,9 +405,13 @@ def simulate_payment(
 
 
 def check_order(ctx: ToolContext, order_id: Any, customer_contact: str) -> dict[str, Any]:
+    contact = str(customer_contact or "")
+    # Checked before looking at the order, so the answer says nothing about the order itself.
+    if _shared_email(ctx, contact):
+        return {"verified": False, "needs_phone": True, "message": SHARED_EMAIL_MESSAGE}
     order = ctx.data.orders.get(_as_int(order_id, "order_id"))
     # Same answer for "no such order" and "wrong contact" so nobody can probe order numbers.
-    if order is None or not _contact_matches(order, str(customer_contact or "")):
+    if order is None or not _contact_matches(order, contact):
         return {
             "verified": False,
             "message": "Não encontramos um pedido com esse número para o e-mail/telefone informado.",
@@ -473,6 +494,14 @@ def escalate_to_human(
     order_id: int | None = None,
 ) -> dict[str, Any]:
     now = ctx.clock()
+    # Tickets about an order record whether the requester proved they own it, so the team never acts
+    # on someone else's order because of a chat message.
+    requester_verified = None
+    if order_id is not None:
+        order_id = _as_int(order_id, "order_id")
+        order = ctx.data.orders.get(order_id)
+        contact = str(customer_contact or "")
+        requester_verified = bool(order) and not _shared_email(ctx, contact) and _contact_matches(order, contact)
     ticket = {
         "ticket_id": f"EM-{uuid.uuid4().hex[:6].upper()}",
         "created_at": now.isoformat(timespec="minutes"),
@@ -481,6 +510,7 @@ def escalate_to_human(
         "customer_name": customer_name,
         "customer_contact": customer_contact,
         "order_id": order_id,
+        "requester_verified": requester_verified,
     }
     ctx.handoff_log.parent.mkdir(parents=True, exist_ok=True)
     with ctx.handoff_log.open("a", encoding="utf-8") as fh:
@@ -493,6 +523,8 @@ def escalate_to_human(
     }
     if not result["store_open_now"]:
         result["team_back_at"] = _when(store.next_opening(now))
+    if requester_verified is False:
+        result["note"] = UNVERIFIED_TICKET_NOTE
     return result
 
 
@@ -612,7 +644,8 @@ def tool_definitions(ctx: ToolContext) -> list[dict[str, Any]]:
                 "Look up an order's status, items, tracking code, delivery estimate and (for delivered orders) "
                 "return/exchange/warranty windows computed for today. Requires the order number AND the e-mail or "
                 "phone used in the purchase; ask the customer for both before calling. Never reveal order data if "
-                "`verified` is false."
+                "`verified` is false. If `needs_phone` is true, the e-mail belongs to more than one customer: ask "
+                "for the phone used in the purchase."
             ),
             "input_schema": {
                 "type": "object",
@@ -657,7 +690,9 @@ def tool_definitions(ctx: ToolContext) -> list[dict[str, Any]]:
                 "Register a ticket for the human team. Use for complaints, problems with an order (delays, damage, "
                 "wrong item), return/exchange requests the customer wants to start, questions the policy does not "
                 "answer, or when the customer asks for a person. Tell the customer the ticket id and the deadline, "
-                "and when the team is back if the store is closed."
+                "and when the team is back if the store is closed. For a ticket about a specific order, pass the "
+                "order_id and the contact the customer gave: if it doesn't match the order, the ticket is marked "
+                "as coming from an unverified requester."
             ),
             "input_schema": {
                 "type": "object",
